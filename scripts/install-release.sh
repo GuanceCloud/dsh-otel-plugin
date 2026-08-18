@@ -10,7 +10,12 @@ x_token=""
 tags=()
 write_config=1
 temp_root="$(mktemp -d)"
-trap 'rm -rf "$temp_root"' EXIT
+stable_archive=""
+cleanup() {
+  rm -rf "$temp_root"
+  if [[ -n "$stable_archive" ]]; then rm -f "$stable_archive"; fi
+}
+trap cleanup EXIT
 
 log() { printf '[install] %s\n' "$1" >&2; }
 fail() { printf '[install] %s\n' "$1" >&2; exit 1; }
@@ -149,6 +154,11 @@ require_command curl
 require_command tar
 require_command sha256sum
 archive="$(resolve_archive)"
+profile_root="${DSH_HOME:-$HOME/.dsh}/profiles/${profile}"
+mkdir -p "$profile_root"
+stable_archive="${profile_root}/.dsh-otel-plugin-install-${BASHPID}.tar.gz"
+cp "$archive" "$stable_archive"
+archive="$stable_archive"
 ensure_pnpm
 if command -v dsh >/dev/null 2>&1; then
   dsh plugin --profile "$profile" add "$archive"

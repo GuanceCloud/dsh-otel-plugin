@@ -59,10 +59,14 @@ try {
     }
   }
   if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { Fail "unable to provide pnpm through corepack or npm" }
+  $ProfileRoot = Join-Path $DshRoot (Join-Path "profiles" $Profile)
+  New-Item -ItemType Directory -Path $ProfileRoot -Force | Out-Null
+  $StableArchive = Join-Path $ProfileRoot (".dsh-otel-plugin-install-" + $PID + ".tar.gz")
+  Copy-Item -LiteralPath $Archive -Destination $StableArchive -Force
   if (Get-Command dsh -ErrorAction SilentlyContinue) {
-    & dsh plugin --profile $Profile add $Archive
+    & dsh plugin --profile $Profile add $StableArchive
   } else {
-    & npx --yes @deepseek-ai/dsh plugin --profile $Profile add $Archive
+    & npx --yes @deepseek-ai/dsh plugin --profile $Profile add $StableArchive
   }
 
   if (-not $NoConfig) {
@@ -86,5 +90,6 @@ try {
   Log "installed dsh-otel-plugin into profile $Profile"
   Log "restart the DSH process before starting a new session"
 } finally {
+  if ($StableArchive -and (Test-Path -LiteralPath $StableArchive)) { Remove-Item -Force -LiteralPath $StableArchive -ErrorAction SilentlyContinue }
   Remove-Item -Recurse -Force $ToolDir -ErrorAction SilentlyContinue
 }
