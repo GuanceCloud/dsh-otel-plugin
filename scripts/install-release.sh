@@ -12,7 +12,7 @@ write_config=1
 temp_root="$(mktemp -d)"
 trap 'rm -rf "$temp_root"' EXIT
 
-log() { printf '[install] %s\n' "$1"; }
+log() { printf '[install] %s\n' "$1" >&2; }
 fail() { printf '[install] %s\n' "$1" >&2; exit 1; }
 
 usage() {
