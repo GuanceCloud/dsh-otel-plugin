@@ -1,0 +1,14 @@
+- id: session-telemetry-otel
+  disabled: true
+
+- insert:
+    - id: dsh-gtrace-otel
+      name: 'dsh-otel-plugin'
+      config:
+        enabled: true
+        endpoint: 'http://127.0.0.1:9529'
+        tracePath: 'otel/v1/traces'
+        metricsPath: 'otel/v1/metrics'
+        captureContent: preview
+        maxAttributeLength: 4096
+        environment: dev

@@ -1,0 +1,11 @@
+# Disable DSH's default OTLP Logs backend, then mount this GTrace Trace +
+# Metrics backend under its own id. Runtime options come from
+# ~/.dsh/gtrace.json, .dsh/gtrace.json, standard OTEL variables,
+# DSH_OTEL_* variables, or an explicit later patch.
+- id: session-telemetry-otel
+  disabled: true
+
+- insert:
+    - id: dsh-gtrace-otel
+      name: 'dsh-otel-plugin'
+      config: {}
