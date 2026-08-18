@@ -61,6 +61,20 @@ try {
   if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { Fail "unable to provide pnpm through corepack or npm" }
   $ProfileRoot = Join-Path $DshRoot (Join-Path "profiles" $Profile)
   New-Item -ItemType Directory -Path $ProfileRoot -Force | Out-Null
+  $ProfilePackage = Join-Path $ProfileRoot "package.json"
+  if (Test-Path -LiteralPath $ProfilePackage) {
+    $Package = Get-Content -Raw -LiteralPath $ProfilePackage | ConvertFrom-Json
+    foreach ($Section in @('dependencies', 'devDependencies', 'optionalDependencies')) {
+      $Values = $Package.$Section
+      if ($Values -and $Values.PSObject.Properties['dsh-otel-plugin']) {
+        $Values.PSObject.Properties.Remove('dsh-otel-plugin')
+      }
+    }
+    $Package | ConvertTo-Json -Depth 30 | Set-Content -Encoding UTF8 -LiteralPath $ProfilePackage
+  }
+  Remove-Item -Force -LiteralPath (Join-Path $ProfileRoot "pnpm-lock.yaml") -ErrorAction SilentlyContinue
+  Remove-Item -Recurse -Force -LiteralPath (Join-Path $ProfileRoot "node_modules/dsh-otel-plugin") -ErrorAction SilentlyContinue
+  Get-ChildItem -LiteralPath $ProfileRoot -Filter ".dsh-otel-plugin-install-*.tar.gz" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
   $StableArchive = Join-Path $ProfileRoot (".dsh-otel-plugin-install-" + $PID + ".tar.gz")
   Copy-Item -LiteralPath $Archive -Destination $StableArchive -Force
   if (Get-Command dsh -ErrorAction SilentlyContinue) {
@@ -90,6 +104,5 @@ try {
   Log "installed dsh-otel-plugin into profile $Profile"
   Log "restart the DSH process before starting a new session"
 } finally {
-  if ($StableArchive -and (Test-Path -LiteralPath $StableArchive)) { Remove-Item -Force -LiteralPath $StableArchive -ErrorAction SilentlyContinue }
   Remove-Item -Recurse -Force $ToolDir -ErrorAction SilentlyContinue
 }

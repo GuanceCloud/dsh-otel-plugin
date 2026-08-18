@@ -10,10 +10,8 @@ x_token=""
 tags=()
 write_config=1
 temp_root="$(mktemp -d)"
-stable_archive=""
 cleanup() {
   rm -rf "$temp_root"
-  if [[ -n "$stable_archive" ]]; then rm -f "$stable_archive"; fi
 }
 trap cleanup EXIT
 
@@ -127,6 +125,7 @@ if (fs.existsSync(file)) {
   const raw = fs.readFileSync(file, 'utf8').trim();
   if (raw) config = JSON.parse(raw);
 }
+
 const endpoint = process.env.DSH_OTEL_ENDPOINT_RUNTIME || '';
 const token = process.env.DSH_OTEL_TOKEN_RUNTIME || '';
 const tags = JSON.parse(process.env.DSH_OTEL_TAGS_RUNTIME || '[]');
@@ -150,12 +149,32 @@ NODE
   log "updated ${config_file}"
 }
 
+reset_stale_plugin_reference() {
+  local package_file="$profile_root/package.json"
+  [[ -f "$package_file" ]] || return 0
+  node - "$package_file" <<'NODE'
+const fs = require('node:fs');
+const file = process.argv[2];
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+  if (config[section] && Object.prototype.hasOwnProperty.call(config[section], 'dsh-otel-plugin')) {
+    delete config[section]['dsh-otel-plugin'];
+  }
+}
+fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n', 'utf8');
+NODE
+  rm -f "$profile_root/pnpm-lock.yaml"
+  rm -rf "$profile_root/node_modules/dsh-otel-plugin"
+  rm -f "$profile_root"/.dsh-otel-plugin-install-*.tar.gz
+}
+
 require_command curl
 require_command tar
 require_command sha256sum
 archive="$(resolve_archive)"
 profile_root="${DSH_HOME:-$HOME/.dsh}/profiles/${profile}"
 mkdir -p "$profile_root"
+reset_stale_plugin_reference
 stable_archive="${profile_root}/.dsh-otel-plugin-install-${BASHPID}.tar.gz"
 cp "$archive" "$stable_archive"
 archive="$stable_archive"
