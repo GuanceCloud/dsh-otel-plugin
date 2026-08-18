@@ -24,24 +24,45 @@ invoke_agent
 
 - DeepSeek Harness：`>=0.1.0-rc.7 <0.2.0`
 - Node.js：`^22.19.0 || >=24.0.0`
-- 平台：Linux、macOS、Windows；安装命令还需要 `pnpm` 位于 `PATH`
+- 平台：Linux、macOS、Windows；安装器会临时通过 Corepack 或 npm 提供 `pnpm`
 
 上游仍处于 developer preview。插件锚定并验证于 `deepseek-harness` 提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`。
 
 ## 安装
 
-从源码目录构建并安装到 Web profile：
+从 GitHub Release 安装最新版到 Web profile（Linux/macOS）：
+
+```bash
+curl -fsSL https://github.com/GuanceCloud/dsh-otel-plugin/releases/latest/download/install-release.sh \
+  -o /tmp/dsh-otel-plugin-install.sh
+chmod +x /tmp/dsh-otel-plugin-install.sh
+/tmp/dsh-otel-plugin-install.sh latest \
+  --profile web \
+  --endpoint 'https://llm-openway.guance.com' \
+  --x-token '<client_token>' \
+  --tag 'agent_id=<agent_id>' \
+  --tag 'agent_name=<agent_name>'
+```
+
+安装特定版本时，将 `latest` 改为 `v0.1.0`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
+
+Windows PowerShell：
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/GuanceCloud/dsh-otel-plugin/releases/latest/download/install-release.ps1))) `
+  -Version latest `
+  -Profile web `
+  -Endpoint "https://llm-openway.guance.com" `
+  -XToken "<client_token>" `
+  -Tag @("agent_id=<agent_id>", "agent_name=<agent_name>")
+```
+
+源码开发安装：
 
 ```bash
 npm install
 npm run build
-dsh plugin --profile web add .
-```
-
-安装到 headless profile：
-
-```bash
-dsh plugin --profile headless add .
+bash scripts/install.sh --profile web
 ```
 
 本包声明了 `dsh.bundle.patch`。安装后会禁用内置的 `session-telemetry-otel`，并插入 `dsh-gtrace-otel` backend，避免两个 backend 同时注册和重复采集。检查最终配置：

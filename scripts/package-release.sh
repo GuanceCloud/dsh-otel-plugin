@@ -20,5 +20,7 @@ cp "$root/scripts/install.sh" "$out/install.sh"
   else
     shasum -a 256 "$packed" "dsh-otel-plugin-v$version.tar.gz" "dsh-otel-plugin.tar.gz" install.sh install-release.sh install-release.ps1 > SHA256SUMS
   fi
+  sha256sum "$out/dsh-otel-plugin-v$version.tar.gz" | awk '{print $1 "  dsh-otel-plugin-v'"$version"'.tar.gz"}' > "dsh-otel-plugin-v$version.tar.gz.sha256"
+  sha256sum "$out/dsh-otel-plugin.tar.gz" | awk '{print $1 "  dsh-otel-plugin.tar.gz"}' > "dsh-otel-plugin.tar.gz.sha256"
 )
 printf 'release assets: %s\n' "$out"
