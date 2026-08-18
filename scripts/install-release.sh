@@ -22,6 +22,7 @@ Usage:
 
 Options:
   --profile NAME       DSH profile (default: web)
+  --type TYPE          telemetry type (accepted for connector compatibility)
   --source SPEC        local archive or URL; overrides the version argument
   --endpoint URL       OTLP base URL, written to gtrace.json
   --x-token TOKEN      GTrace X-Token, written to gtrace.json
@@ -32,6 +33,8 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --type) [[ $# -ge 2 ]] || fail '--type requires a value'; [[ "$2" == "gtrace" ]] || fail "unsupported --type: $2"; shift 2 ;;
+    --type=*) [[ "${1#*=}" == "gtrace" ]] || fail "unsupported --type: ${1#*=}"; shift ;;
     --profile) [[ $# -ge 2 ]] || fail '--profile requires a value'; profile="$2"; shift 2 ;;
     --profile=*) profile="${1#*=}"; shift ;;
     --source) [[ $# -ge 2 ]] || fail '--source requires a value'; source_spec="$2"; shift 2 ;;
