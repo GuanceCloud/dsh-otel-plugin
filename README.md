@@ -44,7 +44,7 @@ chmod +x /tmp/dsh-otel-plugin-install.sh
   --tag 'agent_name=<agent_name>'
 ```
 
-安装特定版本时，将 `latest` 改为 `v0.1.0`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
+安装特定版本时，将 `latest` 改为 `v0.1.1`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
 
 Windows PowerShell：
 
