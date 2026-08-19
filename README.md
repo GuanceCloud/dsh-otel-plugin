@@ -46,6 +46,21 @@ chmod +x /tmp/dsh-otel-plugin-install.sh
 
 安装特定版本时，将 `latest` 改为 `v0.1.2`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
 
+通过 OSS 静态目录安装时，使用 `install.sh`，并把下载根目录传给 `OSS_ENDPOINT`。脚本会自动补上 `dsh-otel-plugin` 子目录：
+
+```bash
+curl -fsSL https://static.guance.com/agent_plugins/dsh-otel-plugin/install.sh \
+  -o /tmp/dsh-otel-plugin-install.sh
+chmod +x /tmp/dsh-otel-plugin-install.sh
+OSS_ENDPOINT='https://static.guance.com/agent_plugins' \
+/tmp/dsh-otel-plugin-install.sh latest \
+  --profile web \
+  --endpoint 'https://llm-openway.guance.com' \
+  --x-token '<client_token>' \
+  --tag 'agent_id=<agent_id>' \
+  --tag 'agent_name=<agent_name>'
+```
+
 Windows PowerShell：
 
 ```powershell
@@ -57,12 +72,14 @@ Windows PowerShell：
   -Tag @("agent_id=<agent_id>", "agent_name=<agent_name>")
 ```
 
+如果 PowerShell 安装器来自 OSS 静态目录，保持同一组参数，并额外传 `-OssEndpoint`，或者预先设置 `OSS_ENDPOINT` 环境变量。
+
 源码开发安装：
 
 ```bash
 npm install
-npm run build
-bash scripts/install.sh --profile web
+npm run package:release
+bash scripts/install-release.sh --source release-assets/dsh-otel-plugin.tar.gz --profile web
 ```
 
 本包声明了 `dsh.bundle.patch`。安装后会禁用内置的 `session-telemetry-otel`，并插入 `dsh-gtrace-otel` backend，避免两个 backend 同时注册和重复采集。检查最终配置：

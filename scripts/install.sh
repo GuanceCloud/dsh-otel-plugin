@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${DSH_OTEL_REPOSITORY:-GuanceCloud/dsh-otel-plugin}"
+PLUGIN_NAME="${DSH_OTEL_PLUGIN_NAME:-dsh-otel-plugin}"
+OSS_ENDPOINT="${OSS_ENDPOINT:-}"
+DOWNLOAD_BASE_URL=""
 profile="web"
 version_input="latest"
 source_spec=""
@@ -10,9 +12,11 @@ x_token=""
 tags=()
 write_config=1
 temp_root="$(mktemp -d)"
+
 cleanup() {
   rm -rf "$temp_root"
 }
+
 trap cleanup EXIT
 
 log() { printf '[install] %s\n' "$1" >&2; }
@@ -21,11 +25,12 @@ fail() { printf '[install] %s\n' "$1" >&2; exit 1; }
 usage() {
   cat <<'EOF'
 Usage:
-  install-release.sh [latest|vX.Y.Z|X.Y.Z|URL|/path/archive.tar.gz] [options]
+  OSS_ENDPOINT=https://example.com/agent_plugins install.sh [latest|vX.Y.Z|X.Y.Z|URL|/path/archive.tar.gz] [options]
 
 Options:
   --profile NAME       DSH profile (default: web)
   --type TYPE          telemetry type (accepted for connector compatibility)
+  --oss-endpoint URL   OSS root endpoint; overrides the OSS_ENDPOINT environment variable
   --source SPEC        local archive or URL; overrides the version argument
   --endpoint URL       OTLP base URL, written to gtrace.json
   --x-token TOKEN      GTrace X-Token, written to gtrace.json
@@ -40,6 +45,8 @@ while [[ $# -gt 0 ]]; do
     --type=*) [[ "${1#*=}" == "gtrace" ]] || fail "unsupported --type: ${1#*=}"; shift ;;
     --profile) [[ $# -ge 2 ]] || fail '--profile requires a value'; profile="$2"; shift 2 ;;
     --profile=*) profile="${1#*=}"; shift ;;
+    --oss-endpoint) [[ $# -ge 2 ]] || fail '--oss-endpoint requires a value'; OSS_ENDPOINT="$2"; shift 2 ;;
+    --oss-endpoint=*) OSS_ENDPOINT="${1#*=}"; shift ;;
     --source) [[ $# -ge 2 ]] || fail '--source requires a value'; source_spec="$2"; shift 2 ;;
     --source=*) source_spec="${1#*=}"; shift ;;
     --endpoint) [[ $# -ge 2 ]] || fail '--endpoint requires a URL'; endpoint="$2"; shift 2 ;;
@@ -88,8 +95,35 @@ download_and_verify() {
   log 'sha256 verified'
 }
 
+normalize_version() {
+  local value="$1"
+  value="${value#v}"
+  printf '%s' "$value"
+}
+
+resolve_download_base_url() {
+  if [[ -z "$OSS_ENDPOINT" ]]; then
+    fail 'OSS_ENDPOINT is required for install.sh. Example: OSS_ENDPOINT=https://static.guance.com/agent_plugins bash install.sh latest'
+  fi
+  local root="${OSS_ENDPOINT%/}"
+  case "$root" in
+    */"$PLUGIN_NAME") printf '%s' "$root" ;;
+    *) printf '%s/%s' "$root" "$PLUGIN_NAME" ;;
+  esac
+}
+
+download_latest_archive() {
+  local target="$1"
+  download_and_verify "${DOWNLOAD_BASE_URL%/}/${PLUGIN_NAME}.tar.gz" "$target"
+}
+
+download_version_archive() {
+  local version="$1" target="$2"
+  download_and_verify "${DOWNLOAD_BASE_URL%/}/${PLUGIN_NAME}-v${version}.tar.gz" "$target"
+}
+
 resolve_archive() {
-  local target="$temp_root/dsh-otel-plugin.tar.gz" version
+  local target="$temp_root/${PLUGIN_NAME}.tar.gz" version
   if [[ -n "$source_spec" ]]; then
     if [[ "$source_spec" == http://* || "$source_spec" == https://* ]]; then
       download_and_verify "$source_spec" "$target"
@@ -100,10 +134,10 @@ resolve_archive() {
     return
   fi
   version="${version_input#v}"
-  if [[ "$version_input" == latest ]]; then
-    download_and_verify "https://github.com/${repo}/releases/latest/download/dsh-otel-plugin.tar.gz" "$target"
+  if [[ "$version_input" == "latest" || -z "$version_input" ]]; then
+    download_latest_archive "$target"
   else
-    download_and_verify "https://github.com/${repo}/releases/download/v${version}/dsh-otel-plugin-v${version}.tar.gz" "$target"
+    download_version_archive "$version" "$target"
   fi
   printf '%s' "$target"
 }
@@ -171,6 +205,7 @@ NODE
 require_command curl
 require_command tar
 require_command sha256sum
+DOWNLOAD_BASE_URL="$(resolve_download_base_url)"
 archive="$(resolve_archive)"
 profile_root="${DSH_HOME:-$HOME/.dsh}/profiles/${profile}"
 mkdir -p "$profile_root"

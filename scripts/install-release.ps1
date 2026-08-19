@@ -2,6 +2,7 @@ param(
   [string]$Version = "latest",
   [string]$Profile = "web",
   [string]$Source = "",
+  [string]$OssEndpoint = "",
   [string]$Endpoint = "",
   [string]$XToken = "",
   [string[]]$Tag = @(),
@@ -10,6 +11,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Repository = if ($env:DSH_OTEL_REPOSITORY) { $env:DSH_OTEL_REPOSITORY } else { "GuanceCloud/dsh-otel-plugin" }
+$PluginName = if ($env:DSH_OTEL_PLUGIN_NAME) { $env:DSH_OTEL_PLUGIN_NAME } else { "dsh-otel-plugin" }
+$OssEndpoint = if ($OssEndpoint) { $OssEndpoint } elseif ($env:OSS_ENDPOINT) { $env:OSS_ENDPOINT } else { "" }
 $ToolDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dsh-otel-" + [guid]::NewGuid())
 $Archive = Join-Path $ToolDir "dsh-otel-plugin.tar.gz"
 $DshRoot = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME ".dsh" }
@@ -18,30 +21,50 @@ $ConfigFile = if ($env:DSH_OTEL_CONFIG_FILE) { $env:DSH_OTEL_CONFIG_FILE } else 
 function Log([string]$Message) { Write-Host "[install] $Message" }
 function Fail([string]$Message) { throw "[install] $Message" }
 function Hash([string]$Path) { (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant() }
+function Normalize-Version([string]$Value) { $Value.TrimStart("v") }
+function Resolve-OssDownloadBase([string]$Value) {
+  $Root = $Value.TrimEnd("/")
+  if ([string]::IsNullOrWhiteSpace($Root)) { return "" }
+  if ($Root.EndsWith("/$PluginName")) { return $Root }
+  return "$Root/$PluginName"
+}
+function Download-AndVerify([string]$Url, [string]$Target) {
+  Log "downloading $Url"
+  Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Target
+  try {
+    $Expected = (Invoke-WebRequest -UseBasicParsing -Uri "$Url.sha256").Content.Trim().Split()[0].ToLowerInvariant()
+  } catch {
+    $Sums = (Invoke-WebRequest -UseBasicParsing -Uri ((Split-Path $Url -Parent) + "/SHA256SUMS")).Content
+    $Name = Split-Path $Url -Leaf
+    $Line = $Sums -split "\`n" | Where-Object { $_ -match "\s\*?$([regex]::Escape($Name))\s*$" } | Select-Object -First 1
+    if (-not $Line) { Fail "checksum not found for $Name" }
+    $Expected = $Line.Trim().Split()[0].ToLowerInvariant()
+  }
+  if ((Hash $Target) -ne $Expected) { Fail "sha256 verification failed" }
+  Log "sha256 verified"
+}
 
 New-Item -ItemType Directory -Path $ToolDir -Force | Out-Null
 try {
   if ([string]::IsNullOrWhiteSpace($Source)) {
+    $DownloadBase = Resolve-OssDownloadBase $OssEndpoint
     if ($Version -eq "latest") {
-      $Url = "https://github.com/$Repository/releases/latest/download/dsh-otel-plugin.tar.gz"
+      if ($DownloadBase) {
+        $Url = "$DownloadBase/$PluginName.tar.gz"
+      } else {
+        $Url = "https://github.com/$Repository/releases/latest/download/$PluginName.tar.gz"
+      }
     } else {
-      $Normalized = $Version.TrimStart("v")
-      $Url = "https://github.com/$Repository/releases/download/v$Normalized/dsh-otel-plugin-v$Normalized.tar.gz"
+      $Normalized = Normalize-Version $Version
+      if ($DownloadBase) {
+        $Url = "$DownloadBase/$PluginName-v$Normalized.tar.gz"
+      } else {
+        $Url = "https://github.com/$Repository/releases/download/v$Normalized/$PluginName-v$Normalized.tar.gz"
+      }
     }
-    Log "downloading $Url"
-    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Archive
-    try {
-      $Expected = (Invoke-WebRequest -UseBasicParsing -Uri "$Url.sha256").Content.Trim().Split()[0].ToLowerInvariant()
-    } catch {
-      $Sums = (Invoke-WebRequest -UseBasicParsing -Uri ((Split-Path $Url -Parent) + "/SHA256SUMS")).Content
-      $Name = Split-Path $Url -Leaf
-      $Line = $Sums -split "\`n" | Where-Object { $_ -match "\s\*?$([regex]::Escape($Name))\s*$" } | Select-Object -First 1
-      $Expected = $Line.Trim().Split()[0].ToLowerInvariant()
-    }
-    if ((Hash $Archive) -ne $Expected) { Fail "sha256 verification failed" }
-    Log "sha256 verified"
+    Download-AndVerify $Url $Archive
   } elseif ($Source -match '^https?://') {
-    Invoke-WebRequest -UseBasicParsing -Uri $Source -OutFile $Archive
+    Download-AndVerify $Source $Archive
   } else {
     Copy-Item -LiteralPath $Source -Destination $Archive
   }
