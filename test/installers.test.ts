@@ -15,6 +15,8 @@ describe('installer scripts', () => {
     expect(script).toContain('OSS_ENDPOINT is required for install.sh')
     expect(script).toContain('download_and_verify "${DOWNLOAD_BASE_URL%/}/${PLUGIN_NAME}.tar.gz"')
     expect(script).toContain('download_and_verify "${DOWNLOAD_BASE_URL%/}/${PLUGIN_NAME}-v${version}.tar.gz"')
+    expect(script).toContain("key.toLowerCase() === 'to-headless'")
+    expect(script).toContain("config.headers['To-Headless'] = 'true';")
     expect(script).not.toContain('https://github.com/${repo}/releases/latest/download')
   })
 
@@ -25,6 +27,8 @@ describe('installer scripts', () => {
     expect(script).toContain('DOWNLOAD_BASE_URL="$(resolve_download_base_url)"')
     expect(script).toContain('https://github.com/${repo}/releases/latest/download/${PLUGIN_NAME}.tar.gz')
     expect(script).toContain('https://github.com/${repo}/releases/download/v${version}/${PLUGIN_NAME}-v${version}.tar.gz')
+    expect(script).toContain("key.toLowerCase() === 'to-headless'")
+    expect(script).toContain("config.headers['To-Headless'] = 'true';")
   })
 
   it('keeps install-release.ps1 OSS-aware for connector downloads', () => {
@@ -33,5 +37,7 @@ describe('installer scripts', () => {
     expect(script).toContain('function Resolve-OssDownloadBase')
     expect(script).toContain('$Url = "$DownloadBase/$PluginName.tar.gz"')
     expect(script).toContain('$Url = "https://github.com/$Repository/releases/latest/download/$PluginName.tar.gz"')
+    expect(script).toContain("Where-Object { $_.Name -ieq 'To-Headless' }")
+    expect(script).toContain("Add-Member 'To-Headless' 'true'")
   })
 })

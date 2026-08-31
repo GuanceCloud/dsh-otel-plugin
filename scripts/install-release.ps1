@@ -111,6 +111,8 @@ try {
     if ($null -eq $Config.enabled) { $Config | Add-Member enabled $true }
     if ($Endpoint) { if ($Config.PSObject.Properties['endpoint']) { $Config.endpoint = $Endpoint } else { $Config | Add-Member endpoint $Endpoint } }
     if ($null -eq $Config.headers) { $Config | Add-Member headers ([pscustomobject]@{}) }
+    $ToHeadlessHeader = $Config.headers.PSObject.Properties | Where-Object { $_.Name -ieq 'To-Headless' } | Select-Object -First 1
+    if (-not $ToHeadlessHeader) { $Config.headers | Add-Member 'To-Headless' 'true' }
     if ($XToken) { if ($Config.headers.PSObject.Properties['X-Token']) { $Config.headers.'X-Token' = $XToken } else { $Config.headers | Add-Member 'X-Token' $XToken } }
     if ($null -eq $Config.tracePath) { $Config | Add-Member tracePath 'v1/write/otel-llm' }
     if ($null -eq $Config.metricsPath) { $Config | Add-Member metricsPath 'v1/write/otel-metrics' }

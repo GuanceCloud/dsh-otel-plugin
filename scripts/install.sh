@@ -166,6 +166,9 @@ const tags = JSON.parse(process.env.DSH_OTEL_TAGS_RUNTIME || '[]');
 config.enabled ??= true;
 if (endpoint) config.endpoint = endpoint;
 config.headers ??= {};
+if (!Object.keys(config.headers).some((key) => key.toLowerCase() === 'to-headless')) {
+  config.headers['To-Headless'] = 'true';
+}
 if (token) config.headers['X-Token'] = token;
 config.tracePath ??= 'v1/write/otel-llm';
 config.metricsPath ??= 'v1/write/otel-metrics';

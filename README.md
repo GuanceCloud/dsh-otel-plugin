@@ -44,7 +44,7 @@ chmod +x /tmp/dsh-otel-plugin-install.sh
   --tag 'agent_name=<agent_name>'
 ```
 
-安装特定版本时，将 `latest` 改为 `v0.1.2`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
+安装特定版本时，将 `latest` 改为目标版本，例如 `v0.1.8`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
 
 通过 OSS 静态目录安装时，使用 `install.sh`，并把下载根目录传给 `OSS_ENDPOINT`。脚本会自动补上 `dsh-otel-plugin` 子目录：
 
@@ -152,7 +152,8 @@ dsh --profile headless 'inspect this project'
   "maxAttributeLength": 4096,
   "environment": "dev",
   "headers": {
-    "X-Token": "replace-me"
+    "X-Token": "replace-me",
+    "To-Headless": "true"
   }
 }
 ```
