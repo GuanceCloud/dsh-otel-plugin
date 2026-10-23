@@ -91,7 +91,8 @@ export class DeepSeekHarnessOtelBackend extends SessionTelemetryBackend {
       return
     }
     this.runtime = createTelemetry(resolved)
-    new SessionTelemetryCoordinator(ctx, this, 'live')
+    // Both 0.1.x and 0.2.x default to live capture; their third argument differs.
+    new SessionTelemetryCoordinator(ctx, this)
     ctx.logger.info(
       `dsh-otel-plugin: enabled; traces=${resolved.traceUrl}; `
       + `metrics=${resolved.metricsEnabled ? resolved.metricsUrl : 'disabled'}; `

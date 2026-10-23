@@ -22,11 +22,13 @@ invoke_agent
 
 ## 兼容性
 
-- DeepSeek Harness：`>=0.1.0-rc.7 <0.2.0`
+- DeepSeek Harness：`>=0.1.0-rc.7 <0.2.0-0 || >=0.2.1-rc.2 <0.3.0-0`
 - Node.js：`^22.19.0 || >=24.0.0`
 - 平台：Linux、macOS、Windows；安装器会临时通过 Corepack 或 npm 提供 `pnpm`
 
-上游仍处于 developer preview。插件锚定并验证于 `deepseek-harness` 提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`。
+上游仍处于 developer preview。插件保留 0.1.x 支持，并对 `0.1.0-rc.7`（`99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`）和 `0.2.1-rc.2`（`687f282e8625c6b8d11ff58211a90524be2e4317`）执行原生 Session → backend → OTLP 回归测试。CI 同时验证两套 telemetry 包。
+
+如果安装提示 `dsh-otel-plugin@0.1.8` 与 dsh `0.2.1-rc.2` 不兼容，请升级到插件 `0.1.9` 或更新版本。旧包的版本声明会触发宿主兼容性检查；新版同时适配 coordinator 和工具结果字段，无需设置 `allow-version` 豁免。
 
 ## 安装
 
@@ -44,7 +46,7 @@ chmod +x /tmp/dsh-otel-plugin-install.sh
   --tag 'agent_name=<agent_name>'
 ```
 
-安装特定版本时，将 `latest` 改为目标版本，例如 `v0.1.8`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
+安装特定版本时，将 `latest` 改为目标版本，例如 `v0.1.9`。如果只安装插件文件、不修改 `gtrace.json`，增加 `--no-config`。
 
 通过 OSS 静态目录安装时，使用 `install.sh`，并把下载根目录传给 `OSS_ENDPOINT`。脚本会自动补上 `dsh-otel-plugin` 子目录：
 

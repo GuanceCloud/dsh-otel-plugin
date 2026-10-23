@@ -300,7 +300,9 @@ export class TurnCollector {
       case 'tool/result':
       case 'tool/code-dispatch': {
         if (!state.active || number(body.turn) !== undefined && number(body.turn) !== state.active.turnId) return undefined
-        const callId = string(body.callId) ?? string(body.subCallId) ?? string(object(body.message)?.source && object(object(body.message)?.source)?.callId)
+        const message = object(body.message)
+        const callId = string(body.callId) ?? string(body.subCallId)
+          ?? string(message?.toolCallId) ?? string(object(message?.source)?.callId)
         if (!callId) return undefined
         let tool = state.active.tools.get(callId)
         if (!tool) {
@@ -317,9 +319,9 @@ export class TurnCollector {
           }
           state.active.tools.set(callId, tool)
         }
-        const message = object(body.message)
-        const resultBlock = object(array(message?.content)[0])
-        const isError = body.isError === true || resultBlock?.isError === true
+        const firstBlock = object(array(message?.content)[0])
+        const resultBlock = firstBlock?.type === 'tool-result' ? firstBlock : undefined
+        const isError = body.isError === true || message?.isError === true || resultBlock?.isError === true
         tool.endTime = record.time
         tool.result = resultBlock?.content ?? body.content ?? message?.content
         tool.status = isError ? 'error' : 'ok'

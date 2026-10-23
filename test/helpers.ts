@@ -3,9 +3,9 @@ import type { SessionTelemetryRecord } from '@deepseek-ai/dsh-session-telemetry'
 import type { Turn } from '../src/model.js'
 import { TurnCollector } from '../src/collector.js'
 
-export function loadFixture(): Turn {
+export function loadFixture(filename = 'normal-turn.jsonl'): Turn {
   const collector = new TurnCollector()
-  const lines = readFileSync(new URL('../fixtures/normal-turn.jsonl', import.meta.url), 'utf8').trim().split('\n')
+  const lines = readFileSync(new URL(`../fixtures/${filename}`, import.meta.url), 'utf8').trim().split('\n')
   let turn: Turn | undefined
   for (const line of lines) {
     turn = collector.accept(JSON.parse(line) as SessionTelemetryRecord) ?? turn
