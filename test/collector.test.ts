@@ -3,6 +3,33 @@ import { TurnCollector } from '../src/collector.js'
 import { loadFixture, record } from './helpers.js'
 
 describe('TurnCollector', () => {
+  it('normalizes 0.2.x source envelopes and flat tool results like 0.1.x', () => {
+    const current = loadFixture('normal-turn-v0.2.jsonl')
+    const legacy = loadFixture()
+    expect(current).toMatchObject(legacy)
+    expect(current.toolCalls).toEqual(legacy.toolCalls)
+    expect(current.llmCalls.map(call => call.usage)).toEqual(legacy.llmCalls.map(call => call.usage))
+  })
+
+  it('preserves 0.2.x tool failures and the complete flat content', () => {
+    const collector = new TurnCollector()
+    collector.accept(record('turn/start', 1, { turn: 1 }))
+    collector.accept(record('tool/call', 2, {
+      turn: 1, step: 1, callId: 'failed-call', name: 'bash', arguments: '{}',
+    }))
+    const content = [{ type: 'text', text: 'permission denied' }, { type: 'text', text: 'second block' }]
+    collector.accept(record('tool/result', 3, {
+      turn: 1, step: 1,
+      message: { role: 'tool', toolCallId: 'failed-call', content, isError: true },
+      error: { name: 'PermissionError', code: 'DENIED' },
+    }))
+    const turn = collector.accept(record('turn/end', 4, { turn: 1, reason: { kind: 'completed' } }))
+    expect(turn?.toolCalls).toHaveLength(1)
+    expect(turn?.toolCalls[0]).toMatchObject({
+      callId: 'failed-call', name: 'bash', status: 'error', errorType: 'DENIED', result: content,
+    })
+  })
+
   it('normalizes a terminal multi-step tool turn', () => {
     const turn = loadFixture()
     expect(turn.session).toMatchObject({ id: 'session-fixture', parentId: 'parent-fixture', seedLength: 4 })

@@ -3,11 +3,11 @@
 ## 1. 产品范围
 
 - 产品名称：DeepSeek Harness（`dsh`）
-- 产品版本：`0.1.0-rc.7`
-- 源码提交：`99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`
+- 产品版本：`0.1.0-rc.7`、`0.2.1-rc.2`
+- 源码提交：`99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`、`687f282e8625c6b8d11ff58211a90524be2e4317`
 - 支持平台：Node.js 支持的平台；验证 Linux，设计兼容 macOS/Windows
 - 目标插件仓库：`dsh-otel-plugin`
-- 调研日期：2026-08-18
+- 调研日期：2026-08-18；兼容性复核：2026-10-23
 
 ## 2. 插件能力
 
@@ -30,6 +30,14 @@
 | SQLite | 不使用 | 不适用 | 不适用 | 不适用 |
 
 内置 `@deepseek-ai/dsh-session-telemetry-otel` 只发送 OTLP Logs。DSH patch 不允许同 ID 更换包名，因此本 bundle 禁用内置 entry，再插入唯一的 `dsh-gtrace-otel` backend，生成 Trace 与 Metrics。
+
+### 0.2.1-rc.2 接口复核
+
+上游 tag `dsh-v0.2.1-rc.2` 中，`SessionTelemetryBackend`、sharing 值与 ledger 基础字段仍可复用。`SessionTelemetryCoordinator` 第三个参数从 capture 字符串改为 options 对象；两代默认都是 live，因此插件省略该参数。新增的可选 `sourceEvent` 不改变 `attributes`/`body` 的读取方式。
+
+`tool/result.message` 从嵌套 `tool-result` block 改为直接保存结果 content，并在消息顶层提供 `toolCallId`、`isError`。插件同时读取两种格式，保留完整 content 与错误状态。0.2.x 的 `assistant/message` 新增 stream，插件仍使用最终 message/usage，不从流内容推测 TTFT。0.2.x 内置 backend 改为反馈触发上传，不影响本插件单独注册的 live coordinator。
+
+宿主 `packages/boot/app-boot/src/plugin-compatibility.ts` 优先检查 `engines.dsh`，且 semver 使用 `includePrerelease: true`；npm peer 解析没有此默认值，因此 engines 与 telemetry peer 都显式包含 `>=0.2.1-rc.2` 分支，并将上界设为 `<0.3.0-0`，排除下一 minor 的预发布版。
 
 ## 4. 标识与关联
 
@@ -66,9 +74,9 @@ turn/end -> normalize -> spans -> metrics -> OTLP queue
 | Request model | `request/header.config.model` | 单次 | 可用 |
 | Response model | `assistant/message.source.model` | 单次 | 可用 |
 | Input/output/cache/reasoning token | `assistant/message.usage` | 单次 | 可用；root 求和 |
-| Finish reason | tool-call 内容 + turn 终态 | 单次推导 | 无独立 finish chunk，因为 capture 固定只保留首 chunk |
+| Finish reason | tool-call 内容 + turn 终态 | 单次推导 | 不读取依赖版本相关的 stream/chunk 字段 |
 | Start/end | `step/start` 到 `assistant/message`/`step/end` | 单次 | 可用 |
-| TTFT | 不上报 | 不适用 | telemetry projection 的首 chunk 可能只是 block-start，不是首 token |
+| TTFT | 不上报 | 不适用 | 0.1.x 首 chunk 可能只是 block-start；0.2.x stream 未接入 TTFT |
 
 ## 7. Tool、Skill 与 Subagent
 
@@ -114,11 +122,13 @@ turn/end -> normalize -> spans -> metrics -> OTLP queue
 
 `fixtures/normal-turn.jsonl` 是合成、去敏的多 LLM + Tool + Skill + Subagent 关联样本。测试另覆盖 tool error、cancelled/error、空白、未闭合 tool、重复终态和内容关闭。真实模型 E2E 需要 `DEEPSEEK_API_KEY`，未写入仓库。
 
+`fixtures/normal-turn-v0.2.jsonl` 提供同一 turn 的 0.2.x 合成格式，包含 sourceEvent、消息 ID 与扁平工具结果。`test/native-backend.test.ts` 在两套真实 telemetry/Session 包上挂载 Cordis backend，通过 Session.append 触发 coordinator，并在 dispose 后验证本地接收端收到 Trace/Metrics；不调用模型 API，不替换 coordinator。`test/compatibility.test.ts` 覆盖宿主预发布版本检查与 npm peer 范围。
+
 ## 12. 未知项与风险
 
 | 问题 | 影响 | 当前降级 | 后续验证 |
 | --- | --- | --- | --- |
-| 上游 developer preview 破坏性变更 | 事件或包 API 可能变化 | peer range 限制到 `<0.2.0` | 每个 DSH RC 跑 fixture 与 profile E2E |
+| 上游 developer preview 破坏性变更 | 事件或包 API 可能变化 | 声明已验证的 0.1.x 与 0.2.1-rc.2 起的 0.2.x，排除 0.3 预发布 | 双版本 CI；每个 DSH RC 跑 fixture 与 profile E2E |
 | 无跨进程 outbox | 崩溃时尾部 Trace/Metrics 可丢 | SDK 队列 + 关闭 drain | 上游提供 durable backend cursor 后实现逐信号状态 |
 | projection 不提供真实首 token | 无可靠 TTFT | 省略 `ttft` | 若增加 token-first 事件再接入 |
 | 子 Session 无触发 tool span ID | 无法建立跨 trace 精确因果 | 只记录 parent Session | 等待稳定 delegation call ID |

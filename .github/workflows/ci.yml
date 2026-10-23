@@ -7,6 +7,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        telemetry: ["0.1.0-rc.7", "0.2.1-rc.2"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,6 +17,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - if: matrix.telemetry != '0.1.0-rc.7'
+        run: npm install --no-save --package-lock=false @deepseek-ai/dsh-session-telemetry@${{ matrix.telemetry }}
       - run: npm run check
       - run: npm test
       - run: npm run smoke:otlp
